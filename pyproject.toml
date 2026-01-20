@@ -1,0 +1,21 @@
+[project]
+name = "stock_analyzer"
+version = "0.1.0"
+description = "Stock-Analyzer Hyperskill project for the AI Engineering Bootcamp"
+authors = [
+    {name = "Ignacio Ponisio",email = "ponisio.ignacio@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai (>=2.15.0,<3.0.0)",
+    "python-dotenv (>=1.2.1,<2.0.0)"
+]
+
+[project.scripts]
+stock_analyzer="stock_analyzer.main:execute"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
