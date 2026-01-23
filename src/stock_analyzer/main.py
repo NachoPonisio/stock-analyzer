@@ -1,50 +1,38 @@
-import os
 import time
-from typing import Iterable, Final, Optional
+from typing import Iterable
 
-from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.beta.assistant import Assistant
+
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads import Run
 from openai.types.beta.threads.message import Message
 
-
-def get_or_create_assistant(client: OpenAI, name: str, instructions: str, model: str = "gpt-4o") -> Assistant:
-    """Finds an existing assistant by name or creates a new one."""
-    existing_assistants: Iterable[Assistant] = client.beta.assistants.list()
-    assistant: Optional[Assistant] = next((a for a in existing_assistants if a.name == name), None)
-
-    if assistant:
-        print(f"Matching `{name}` assistant found, using the first matching assistant with ID: {assistant.id}")
-        return assistant
-    else:
-        assistant = client.beta.assistants.create(
-            name=name,
-            instructions=instructions,
-            model=model
-        )
-        print(f"No matching `{name}` found, creating a new assistant with ID: {assistant.id}")
-
-        return assistant
+from stock_analyzer.assistants import get_or_create_assistant
+from stock_analyzer.assistants.tools import ONGOING_STATUSES, iterate_run
+from stock_analyzer.config import load_configs
+from stock_analyzer.tools.definitions import available_tools
 
 
 def execute () -> None:
     """
     Main entry point for the stock analyzer application.
     """
-    load_dotenv()
-    assistant_name: Final = os.getenv("ASSISTANT_NAME")
-    assistant_instructions: Final = os.getenv("ASSISTANT_INSTRUCTIONS")
-    api_key: Final = os.getenv("OPENAI_API_KEY")
-
+    assistant_name, assistant_instructions, api_key, delete_if_exists = load_configs()
     client: OpenAI = OpenAI(api_key=api_key)
-    assistant: Assistant = get_or_create_assistant(client, assistant_name, assistant_instructions)
+    assistant: Assistant = get_or_create_assistant(
+        client=client,
+        name=assistant_name,
+        instructions=assistant_instructions,
+        tools=available_tools(),
+        delete_if_exists=delete_if_exists
+    )
+
     thread: Thread = client.beta.threads.create()
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Tell me your name and instructions. YOU MUST Provide a DIRECT and SHORT response."
+        content="Retrieve and show the latest daily time series data for the stock symbol 'AAPL'."
     )
 
     run: Run = client.beta.threads.runs.create(
@@ -52,13 +40,9 @@ def execute () -> None:
         assistant_id=assistant.id
     )
 
-    while run.status != "completed":
-        time.sleep(1)
-        run = client.beta.threads.runs.retrieve(
-            thread_id=thread.id,
-            run_id=run.id
-        )
-        print(f"Run status: {run.status}")
+
+    while run.status not in ONGOING_STATUSES:
+        run = iterate_run(client, run_id=run.id, thread_id=thread.id)
 
     messages: Iterable[Message] = client.beta.threads.messages.list(
         thread_id=thread.id
@@ -67,3 +51,6 @@ def execute () -> None:
     for message in messages:
         if message.role == "assistant":
             print(f"Assistant: {message.content[0].text.value}")
+
+
+

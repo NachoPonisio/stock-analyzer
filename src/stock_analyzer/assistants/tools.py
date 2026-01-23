@@ -1,0 +1,69 @@
+import time
+from typing import Iterable, Optional, Final
+
+from openai import OpenAI
+from openai.types.beta import Assistant
+from openai.types.beta.threads import Run
+
+ONGOING_STATUSES: Final = ["queued", "in_progress", "cancelling"]
+RETURN_STATUSES: Final = ["requires_action", "completed"]
+FAILURE_STATUSES: Final = ["cancelled", "failed", "incomplete", "expired"]
+
+def get_or_create_assistant(
+        client: OpenAI,
+        name: str,
+        instructions: str,
+        tools: list[dict],
+        model: str = "gpt-4o",
+        delete_if_exists: bool = False) -> Assistant:
+    """Finds an existing assistant by name or creates a new one."""
+    existing_assistants: Iterable[Assistant] = client.beta.assistants.list()
+    assistant: Optional[Assistant] = next((a for a in existing_assistants if a.name == name), None)
+
+    if assistant:
+        if delete_if_exists:
+            client.beta.assistants.delete(assistant_id=assistant.id)
+            assistant: Assistant = client.beta.assistants.create(
+                    name=name,
+                    instructions=instructions,
+                    model=model,
+                    tools=tools
+
+                )
+            print(f"Matching `{name}` assistant found and `delete_if_exists` flag set to True, deleting and creating new assistant: {assistant.id}")
+            return assistant
+
+        print(f"Matching `{name}` assistant found, using the first matching assistant with ID: {assistant.id}")
+        return assistant
+    else:
+        assistant = client.beta.assistants.create(
+            name=name,
+            instructions=instructions,
+            model=model,
+            tools=tools
+        )
+        print(f"No matching `{name}` found, creating a new assistant with ID: {assistant.id}")
+        return assistant
+
+
+
+def iterate_run(client: OpenAI, run_id: str, thread_id: str) -> Run:
+    time.sleep(1)
+    run: Run = client.beta.threads.runs.retrieve(
+        thread_id=thread_id,
+        run_id=run_id
+    )
+
+    match run.status:
+        case o if o in ONGOING_STATUSES:
+            return iterate_run(client=client, run_id=run_id, thread_id=thread_id)
+        case r if r in RETURN_STATUSES:
+            return run
+        case f if f in FAILURE_STATUSES:
+            raise RuntimeError("Thread finished with an unexpected status")
+
+
+
+
+
+
