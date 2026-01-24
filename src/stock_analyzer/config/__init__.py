@@ -1,1 +1,1 @@
-from .tools import load_configs
+from .config import get_config, AppConfig
