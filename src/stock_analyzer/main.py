@@ -42,7 +42,7 @@ def execute() -> None:
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Retrieve and show the latest daily time series data for the stock symbol 'AAPL'."
+        content="Retrieve the monthly time series data for the stock symbol 'CRM' for the latest 3 months. Analyze the retrieved stock data and identify any trends, calculate ratios, key metrics, etc. Limit your responses to a text summary."
     )
 
     run: Run = client.beta.threads.runs.create(
