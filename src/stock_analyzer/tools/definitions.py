@@ -25,6 +25,9 @@ def available_tools() -> list[AssistantToolParam]:
                     "required": ["symbol", "interval"],
                 },
             },
+        },
+        {
+            "type": "code_interpreter"
         }
     ]
     return functions_list
