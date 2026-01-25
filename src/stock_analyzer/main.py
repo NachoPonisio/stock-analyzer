@@ -1,50 +1,48 @@
-import os
+import logging
 import time
-from typing import Iterable, Final, Optional
+from typing import Iterable
 
-from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.thread import Thread
-from openai.types.beta.threads import Run
+from openai.types.beta.threads import Run, RequiredActionFunctionToolCall
 from openai.types.beta.threads.message import Message
+from openai.types.beta.threads.run_submit_tool_outputs_params import ToolOutput
 
+from stock_analyzer.assistants import get_or_create_assistant
+from stock_analyzer.assistants import iterate_run
+from stock_analyzer.config import get_config, AppConfig
+from stock_analyzer.tools import process_tool_calls
+from stock_analyzer.tools.definitions import available_tools
 
-def get_or_create_assistant(client: OpenAI, name: str, instructions: str, model: str = "gpt-4o") -> Assistant:
-    """Finds an existing assistant by name or creates a new one."""
-    existing_assistants: Iterable[Assistant] = client.beta.assistants.list()
-    assistant: Optional[Assistant] = next((a for a in existing_assistants if a.name == name), None)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
 
-    if assistant:
-        print(f"Matching `{name}` assistant found, using the first matching assistant with ID: {assistant.id}")
-        return assistant
-    else:
-        assistant = client.beta.assistants.create(
-            name=name,
-            instructions=instructions,
-            model=model
-        )
-        print(f"No matching `{name}` found, creating a new assistant with ID: {assistant.id}")
+logger = logging.getLogger(__name__)
 
-        return assistant
-
-
-def execute () -> None:
+def execute() -> None:
     """
     Main entry point for the stock analyzer application.
     """
-    load_dotenv()
-    assistant_name: Final = os.getenv("ASSISTANT_NAME")
-    assistant_instructions: Final = os.getenv("ASSISTANT_INSTRUCTIONS")
-    api_key: Final = os.getenv("OPENAI_API_KEY")
+    start_time: float = time.perf_counter()
+    config: AppConfig = get_config()
+    client: OpenAI = OpenAI(api_key=config.openai_api_key)
+    assistant: Assistant = get_or_create_assistant(
+        client=client,
+        name=config.assistant_name,
+        instructions=config.assistant_instructions,
+        tools=available_tools(),
+        delete_if_exists=config.delete_if_exists
+    )
 
-    client: OpenAI = OpenAI(api_key=api_key)
-    assistant: Assistant = get_or_create_assistant(client, assistant_name, assistant_instructions)
     thread: Thread = client.beta.threads.create()
+    logger.info(f"Thread created with ID: {thread.id}")
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Tell me your name and instructions. YOU MUST Provide a DIRECT and SHORT response."
+        content="Retrieve and show the latest daily time series data for the stock symbol 'AAPL'."
     )
 
     run: Run = client.beta.threads.runs.create(
@@ -52,13 +50,22 @@ def execute () -> None:
         assistant_id=assistant.id
     )
 
-    while run.status != "completed":
-        time.sleep(1)
-        run = client.beta.threads.runs.retrieve(
+    run = iterate_run(client, run_id=run.id, thread_id=thread.id)
+
+    logger.info(f"Run initiated with ID: {run.id}")
+    logger.info(f"Waiting for response from `{assistant.name}`. Elapsed time: {time.perf_counter() - start_time:.6f} s")
+
+    if run.status == "requires_action":
+        tool_calls: list[RequiredActionFunctionToolCall] = run.required_action.submit_tool_outputs.tool_calls
+        outputs: Iterable[ToolOutput] = process_tool_calls(tool_calls)
+        client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread.id,
-            run_id=run.id
+            run_id=run.id,
+            tool_outputs=outputs
         )
-        print(f"Run status: {run.status}")
+        run = iterate_run(client, run_id=run.id, thread_id=thread.id)
+        logger.info(f"Run initiated with ID: {run.id}")
+
 
     messages: Iterable[Message] = client.beta.threads.messages.list(
         thread_id=thread.id
@@ -66,4 +73,7 @@ def execute () -> None:
 
     for message in messages:
         if message.role == "assistant":
-            print(f"Assistant: {message.content[0].text.value}")
+            logger.info(f"Assistant: {message.content[0].text.value}")
+
+if __name__ == "__main__":
+    execute()
