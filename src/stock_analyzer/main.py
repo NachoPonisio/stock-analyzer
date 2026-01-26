@@ -1,8 +1,9 @@
 import logging
+import tempfile
 import time
 from typing import Iterable
 
-from openai import OpenAI
+from openai import OpenAI, HttpxBinaryResponseContent
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads import Run, RequiredActionFunctionToolCall
@@ -42,7 +43,7 @@ def execute() -> None:
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Retrieve the monthly time series data for the stock symbol 'CRM' for the latest 3 months. Analyze the retrieved stock data and identify any trends, calculate ratios, key metrics, etc. Limit your responses to a text summary."
+        content="Retrieve and visualize the monthly time series data for the stock symbol 'CRM' for the last 3 months."
     )
 
     run: Run = client.beta.threads.runs.create(
@@ -73,7 +74,17 @@ def execute() -> None:
 
     for message in messages:
         if message.role == "assistant":
-            logger.info(f"Assistant: {message.content[0].text.value}")
+            block = message.content[0]
+
+            match block.type:
+                case "text":
+                    logger.info("Assistant: %s", block.text.value)
+                case "image_file":
+                    file_id = block.image_file.file_id
+                    file_contents: HttpxBinaryResponseContent = client.files.content(file_id=file_id)
+                    with tempfile.NamedTemporaryFile(delete=False, mode='wb', suffix='.png') as temp_file:
+                        temp_file.write(file_contents.read())
+                        logger.info(f"Assistant: Generated temporary file at {temp_file.name}")
 
 if __name__ == "__main__":
     execute()
