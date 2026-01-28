@@ -1,10 +1,8 @@
-import json
 import logging
 import time
 from typing import Iterable
 
 from openai import OpenAI
-from openai.resources.beta.threads.runs import Steps
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads import Run, RequiredActionFunctionToolCall
