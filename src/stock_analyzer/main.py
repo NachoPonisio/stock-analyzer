@@ -9,6 +9,7 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.threads import Run, RequiredActionFunctionToolCall
 from openai.types.beta.threads.message import Message
 from openai.types.beta.threads.run_submit_tool_outputs_params import ToolOutput
+from openai.types.beta.threads.runs import RunStep
 
 from stock_analyzer.assistants import get_or_create_assistant
 from stock_analyzer.assistants import iterate_run
@@ -43,7 +44,7 @@ def execute() -> None:
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Retrieve and visualize the monthly time series data for the stock symbol 'CRM' for the last 3 months."
+        content="Retrieve the monthly time series data for the stock symbol 'CRM' for the latest 3 months. Analyze the retrieved stock data and identify any trends, calculate ratios, key metrics, etc. Limit your responses to a text summary."
     )
 
     run: Run = client.beta.threads.runs.create(
@@ -85,6 +86,14 @@ def execute() -> None:
                     with tempfile.NamedTemporaryFile(delete=False, mode='wb', suffix='.png') as temp_file:
                         temp_file.write(file_contents.read())
                         logger.info(f"Assistant: Generated temporary file at {temp_file.name}")
+
+    steps: Iterable[RunStep] = client.beta.threads.runs.steps.list(
+        run_id=run.id,
+        thread_id=thread.id
+    )
+
+    for step in steps:
+        logger.info(f"Steps: {step.id}, type: {step.type}, status: {step.status}")
 
 if __name__ == "__main__":
     execute()
