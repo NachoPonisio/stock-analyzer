@@ -2,7 +2,7 @@
 - Incorporated feedback about config management, it is now encapsulated in a separate module.
 - Incorporated feedback about the assistant creation process, it is encapsulated under the `assistants` module
 - Incorporated feedback about management of different run states. The logic was enhanced and abstracted under the `assistants` module, `iterate_run` function.
-- Included logginggit
+- Included logging
 
 # Configuring
 

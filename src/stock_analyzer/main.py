@@ -1,13 +1,16 @@
+import json
 import logging
 import time
 from typing import Iterable
 
 from openai import OpenAI
+from openai.resources.beta.threads.runs import Steps
 from openai.types.beta.assistant import Assistant
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads import Run, RequiredActionFunctionToolCall
 from openai.types.beta.threads.message import Message
 from openai.types.beta.threads.run_submit_tool_outputs_params import ToolOutput
+from openai.types.beta.threads.runs import RunStep
 
 from stock_analyzer.assistants import get_or_create_assistant
 from stock_analyzer.assistants import iterate_run
@@ -74,6 +77,14 @@ def execute() -> None:
     for message in messages:
         if message.role == "assistant":
             logger.info(f"Assistant: {message.content[0].text.value}")
+
+    steps: Iterable[RunStep] = client.beta.threads.runs.steps.list(
+        run_id=run.id,
+        thread_id=thread.id
+    )
+
+    for step in steps:
+        logger.info(f"Steps: {step.id}, type: {step.type}, status: {step.status}")
 
 if __name__ == "__main__":
     execute()
