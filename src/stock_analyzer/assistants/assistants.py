@@ -18,7 +18,7 @@ def get_or_create_assistant(
         name: str,
         instructions: str,
         tools: Iterable[AssistantToolParam],
-        model: str = "gpt-4o",
+        model: str = "gpt-4o-mini",
         delete_if_exists: bool = False) -> Assistant:
 
     """Finds an existing assistant by name or creates a new one."""
@@ -65,7 +65,7 @@ def iterate_run(client: OpenAI, run_id: str, thread_id: str) -> Run | None:
         case r if r in RETURN_STATUSES:
             return run
         case f if f in FAILURE_STATUSES:
-            raise RuntimeError("Thread finished with an unexpected status")
+            raise RuntimeError(f"Thread finished with an unexpected status: {f}")
 
 
 
