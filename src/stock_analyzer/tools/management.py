@@ -22,7 +22,7 @@ def process_tool_calls(
         #time_series: str = json.dumps(response[list(response.keys())[1]])
         time_series_key: Optional[str] = next((k for k in response.keys() if "Time Series" in k), None)
         if not time_series_key:
-            raise RuntimeError("No time series data available from Alphavantage")
+            raise RuntimeError(f"Alphavantage: {response['Information']}")
         output.append(
             {
                 "tool_call_id": call.id,

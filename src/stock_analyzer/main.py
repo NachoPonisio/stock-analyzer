@@ -1,3 +1,4 @@
+import datetime
 import logging
 import tempfile
 import time
@@ -44,9 +45,12 @@ def execute() -> None:
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Retrieve and visualize the monthly time series data for the stock symbol 'CRM' for the last 3 months. \n" +
-                "Plot a line graph containing the prices highs, lows and averages. In the same image, add a " +
-                "separate bar graph below, and plot the volume traded."
+        content="Retrieve the monthly data for the stock symbol 'CRM' \n"
+                + "Using the data retrieved, plot a line graph containing the average open prices, average highs, average lows, and average close prices for each month."
+                + "Using the same data, in the same image, add a separate bar graph below, and plot the average volume traded in each month. \n"
+                + f"The current date is {datetime.date}. Make sure to only analyze and plot data from the past three months.  Disregard data points older than 90 days from today."
+                + "Make sure to label the datapoints with format MM-YYYY in the horizontal axis, and to represent them in ascending order."
+
     )
 
     run: Run = client.beta.threads.runs.create(
