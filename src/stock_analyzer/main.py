@@ -44,7 +44,9 @@ def execute() -> None:
     message: Message = client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content="Retrieve and visualize the monthly time series data for the stock symbol 'CRM' for the last 3 months."
+        content="Retrieve and visualize the monthly time series data for the stock symbol 'CRM' for the last 3 months. \n" +
+                "Plot a line graph containing the prices highs, lows and averages. In the same image, add a " +
+                "separate bar graph below, and plot the volume traded."
     )
 
     run: Run = client.beta.threads.runs.create(
@@ -76,16 +78,16 @@ def execute() -> None:
     for message in messages:
         if message.role == "assistant":
             block = message.content[0]
-
             match block.type:
                 case "text":
                     logger.info("Assistant: %s", block.text.value)
                 case "image_file":
                     file_id = block.image_file.file_id
                     file_contents: HttpxBinaryResponseContent = client.files.content(file_id=file_id)
-                    with tempfile.NamedTemporaryFile(delete=False, mode='wb', suffix='.png') as temp_file:
-                        temp_file.write(file_contents.read())
-                        logger.info(f"Assistant: Generated temporary file at {temp_file.name}")
+                    with open(file="stock-image.png", mode="wb") as image_file:
+                        image_file.write(file_contents.read())
+                        logger.info(f"Assistant: {file_id}")
+                        logger.info(f"Assistant: Generated temporary file at {image_file.name}")
 
     steps: Iterable[RunStep] = client.beta.threads.runs.steps.list(
         run_id=run.id,
