@@ -49,7 +49,7 @@ def execute() -> None:
                 + "Using the data retrieved, plot a line graph containing the average open prices, average highs, average lows, and average close prices for each month."
                 + "Using the same data, in the same image, add a separate bar graph below, and plot the average volume traded in each month. \n"
                 + f"The current date is {datetime.date}. Make sure to only analyze and plot data from the past three months.  Disregard data points older than 90 days from today."
-                + "Make sure to label the datapoints with format MM-YYYY in the horizontal axis, and to represent them in ascending order."
+                + "Make sure to label the datapoints with format MM-YYYY in the horizontal axis, and to represent them in ASCENDING TIME order."
 
     )
 

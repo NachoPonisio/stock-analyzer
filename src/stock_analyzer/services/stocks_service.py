@@ -1,14 +1,20 @@
+import logging
 from typing import Literal, Any
 
 import requests
-import logging
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from stock_analyzer.config import get_config, AppConfig
 
 logger = logging.getLogger(__name__)
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def is_http_retryable(exception):
+    if isinstance(exception, requests.exceptions.HTTPError):
+        status_code = exception.response.status_code
+        return status_code in [408, 429]
+    return False
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception(is_http_retryable))
 def retrieve_time_series(symbol: str, interval: Literal["intraday", "daily", "weekly", "monthly"]) -> dict[str, Any]:
     config: AppConfig = get_config()
     api_key: str = config.alphavantage_api_key
